@@ -1,13 +1,10 @@
 '''
 changes: 
-adding tag frequency function
+the bug "recipe returns none #1" fixed.
 '''
 import os
-from SPARQLWrapper import SPARQLWrapper, JSON
-import json
 
-
-def gettingTheIdFromTheLinkStringRecipe ( data ):
+def gettingTheFromTheLinkStringRecipe ( data ):
 	recipes=[]
 	i=0
 	itemp=0
@@ -23,7 +20,7 @@ def gettingTheIdFromTheLinkStringRecipe ( data ):
 		i += 1
 	return recipes
 
-def gettingTheIdFromTheLinkStringName ( data ):
+def gettingTheFromTheLinkStringName ( data ):
 	nameID=""
 	i=0
 	itemp=0
@@ -39,31 +36,12 @@ def gettingTheIdFromTheLinkStringName ( data ):
 	
 	return nameID
 
-
-def gettingTheTagNames ( data ):
-	tags=[]
-	i=0
-	itemp=0
-	j=0
-	while i<len(data):
-		if data[i]=='a' and data[i+1]=='g' and data[i+2]=='s' and data[i+3]=='/':
-			itemp=i+4
-			tags.append("")
-			while data[itemp]!='>':
-				tags[j]+=data[itemp]
-				itemp+=1
-			j+=1
-		i += 1
-	return tags
-
 def sendQueryToFuseki ( oneIngredientName ):
-	queryString='rsparql --service http://localhost:3030/F2/query "'
-	queryString+="""PREFIX recipe: <http://linkedrecipes.org/schema/> PREFIX kasabif: <http://data.kasabi.com/dataset/foodista/food/> SELECT ?recipe_id WHERE{GRAPH ?graph { ?recipe_id recipe:ingredient kasabif:"""+oneIngredientName+""" .}}"""
-	queryString+='"'
+	queryString='rsparql --service http://localhost:3030/F2/query "SELECT ?s WHERE { GRAPH ?o { ?s ?p <http://data.kasabi.com/dataset/foodista/food/'+str(oneIngredientName)+'>}}"'
 	a=os.popen(queryString)
 	data=a.read()
 	a.close()
-	return gettingTheIdFromTheLinkStringRecipe(data)
+	return gettingTheFromTheLinkStringRecipe(data)
 
 def findTheCommonRecipes ( recipesArray1 ,  recipesArray2):
 	newRecipesArray1=[]
@@ -77,42 +55,12 @@ def findTheCommonRecipes ( recipesArray1 ,  recipesArray2):
 def findingTheIdofTheName(arrayOfIngredients):
 	newArrayOfIngredients=[]
 	for i in range(len(arrayOfIngredients)):
-		queryString='rsparql --service http://localhost:3030/F1/query "'
-		queryString+="""PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT ?food_id WHERE{GRAPH ?g { ?food_id rdfs:label \'"""+arrayOfIngredients[i]+"""\' .}}"""
-		queryString+='"'
+		queryString='rsparql --service http://localhost:3030/F1/query \'SELECT ?p WHERE { GRAPH ?g { ?p <http://www.w3.org/2000/01/rdf-schema#label> "'+arrayOfIngredients[i]+'"} }\''
 		a=os.popen(queryString)
 		data=a.read()
 		a.close()
-		newArrayOfIngredients.append(gettingTheIdFromTheLinkStringName(data))
+		newArrayOfIngredients.append(gettingTheFromTheLinkStringName(data))
 	return newArrayOfIngredients
-
-def gettingTags(recId):
-	queryString='rsparql --service http://localhost:3030/F2/query "'
-	queryString+="""PREFIX recipe: <http://linkedrecipes.org/schema/> PREFIX recID: <http://data.kasabi.com/dataset/foodista/recipe/> SELECT ?recipe_id WHERE{GRAPH ?graph { recID:"""+recId+""" recipe:category ?recipe_id.}}"""
-	queryString+='"'
-	a=os.popen(queryString)
-	data=a.read()
-	a.close()
-	return gettingTheTagNames(data)
-
-def countTags(recId):
-	recString=""
-	for i in range(len(recId)):
-		recString+=" ?other = recID:"+str(recId[i])
-		if i != (len(recId)-1):
-			recString+=" ||"
-	queryString="""PREFIX recipe: <http://linkedrecipes.org/schema/> PREFIX recID: <http://data.kasabi.com/dataset/foodista/recipe/> SELECT ?tag (count(?tag) as ?count) (SAMPLE(?other) as ?myRecID) WHERE{{ GRAPH ?graph { ?other recipe:category ?tag.} FILTER( """+recString+""" )} union {GRAPH ?graph {?other recipe:category ?tag. }FILTER("""+recString+""")}} GROUP BY ?tag ORDER BY DESC(?count) LIMIT 5"""
-        sparql = SPARQLWrapper("http://localhost:3030/F2/query")
-        sparql.setQuery(queryString)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
-	tagFrequency=[]
-	for i in range(len(results["results"]["bindings"])):
-		result = results["results"]["bindings"][i]
-		tagFrequency.append([])
-		tagFrequency[i].append(result["tag"]["value"][45:])
-		tagFrequency[i].append(result["myRecID"]["value"][47:])
-	return  tagFrequency
 
 def main():
 	temp = open ("ingredients.txt", "r+")
@@ -139,21 +87,10 @@ def main():
 				finalId=allRecipesArray[0]
 			else:
 				break
-	
-	'''
-	tagArray=[]
-	aCounter=0
-	while aCounter<len(finalId):
-		tagArray.append(gettingTags(finalId[aCounter]))
-		aCounter+=1
-	print len(tagArray)
-	for i in range(len(tagArray)):
-		print tagArray[i]
-	'''
 	print '**************'
 	print 'Recipe ID: ',finalId
 	print '**************'
 	print 'Number of Recipes: ',len(finalId)
 	print '**************'
-	print countTags(finalId)
+
 main()
